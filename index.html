@@ -1,0 +1,1018 @@
+
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venganza de Asfalto - Shooter 2D</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 95%;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+            text-shadow: 2px 2px 0 #000;
+        }
+        .hud-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .health-bar-container {
+            width: 200px;
+            height: 20px;
+            background: #444;
+            border: 2px solid #000;
+            margin-bottom: 5px;
+            position: relative;
+        }
+        .health-bar {
+            width: 100%;
+            height: 100%;
+            transition: width 0.2s;
+        }
+        .ammo-text { font-size: 20px; font-weight: bold; color: #aaa; }
+        .p1-color { background: #3498db; }
+        .p2-color { background: #2ecc71; }
+        
+        #center-ui {
+            text-align: center;
+        }
+        #level-info {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffcc00;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 10;
+        }
+        h1 { font-size: 48px; color: #ff4444; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 5px; }
+        h2 { font-size: 20px; color: #ccc; margin-bottom: 30px; max-width: 700px; line-height: 1.5; }
+        
+        /* ESTILOS DE LA BARRA DE PROGRESO */
+        .progress-container {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 15px;
+        }
+        .step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #333;
+            border: 2px solid #555;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #777;
+            font-size: 18px;
+            transition: all 0.3s;
+        }
+        .step.done {
+            background: #2ecc71;
+            border-color: #27ae60;
+            color: #fff;
+            box-shadow: 0 0 5px #2ecc71;
+        }
+        .step.active {
+            background: #f1c40f;
+            border-color: #f39c12;
+            color: #000;
+            transform: scale(1.2);
+            box-shadow: 0 0 15px #f1c40f;
+            z-index: 2;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: transform 0.1s, background 0.2s;
+            border: 2px solid #fff;
+        }
+        button:hover { transform: scale(1.05); background: #ff2222; }
+        button:active { transform: scale(0.95); }
+        .hidden { display: none !important; }
+        
+        .controls-info {
+            display: flex;
+            gap: 50px;
+            margin-top: 30px;
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .control-block h3 { color: #ffcc00; margin-top: 0; }
+        .key { color: #3498db; font-weight: bold; }
+        .key2 { color: #2ecc71; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <!-- P1 HUD -->
+        <div class="hud-panel" id="p1-hud">
+            <span style="color:#3498db; font-weight:bold;">JUGADOR 1</span>
+            <div class="health-bar-container">
+                <div id="health-bar-p1" class="health-bar p1-color"></div>
+            </div>
+            <div id="ammo-p1" class="ammo-text">Munición: 15</div>
+        </div>
+
+        <!-- Center Info -->
+        <div id="center-ui">
+            <div id="level-info">Nivel 1</div>
+        </div>
+
+        <!-- P2 HUD (Oculto por defecto) -->
+        <div class="hud-panel hidden" id="p2-hud">
+            <span style="color:#2ecc71; font-weight:bold;">JUGADOR 2</span>
+            <div class="health-bar-container">
+                <div id="health-bar-p2" class="health-bar p2-color"></div>
+            </div>
+            <div id="ammo-p2" class="ammo-text">Munición: 15</div>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <h1 id="title-text">VENGANZA DE ASFALTO</h1>
+        <h2 id="story-text">Te traicionaron. Secuestraron a tu familia.<br>Es hora de recuperar lo que es tuyo.</h2>
+        
+        <!-- BARRA DE PROGRESO DE NIVELES -->
+        <div class="progress-container" id="level-progress">
+            <!-- Se llena con JS -->
+        </div>
+
+        <div class="btn-group" id="mode-select">
+            <button onclick="selectMode(1)">1 JUGADOR</button>
+            <button onclick="selectMode(2)">2 JUGADORES (CO-OP)</button>
+        </div>
+
+        <div class="btn-group hidden" id="level-actions">
+            <button id="action-btn" onclick="nextLevel()">CONTINUAR</button>
+        </div>
+
+        <div class="controls-info">
+            <div class="control-block">
+                <h3>JUGADOR 1</h3>
+                <p>Mover: <span class="key">WASD</span></p>
+                <p>Saltar: <span class="key">ESPACIO</span></p>
+                <p>Apuntar: <span class="key">RATÓN</span></p>
+                <p>Disparar: <span class="key">CLIC DERECHO</span></p>
+            </div>
+            <div class="control-block">
+                <h3>JUGADOR 2</h3>
+                <p>Mover: <span class="key2">FLECHAS</span></p>
+                <p>Saltar: <span class="key2">FLECHA ARRIBA</span></p>
+                <p>Apuntar: <span class="key2">AUTO (DIRECCIÓN)</span></p>
+                <p>Disparar: <span class="key2">SHIFT DER / ENTER</span></p>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+/**
+ * CONFIGURACIÓN Y CONSTANTES
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const titleText = document.getElementById('title-text');
+const storyText = document.getElementById('story-text');
+const modeSelect = document.getElementById('mode-select');
+const levelActions = document.getElementById('level-actions');
+const actionBtn = document.getElementById('action-btn');
+const progressContainer = document.getElementById('level-progress');
+
+// Elementos HUD
+const uiP1 = document.getElementById('p1-hud');
+const barP1 = document.getElementById('health-bar-p1');
+const ammoP1 = document.getElementById('ammo-p1');
+
+const uiP2 = document.getElementById('p2-hud');
+const barP2 = document.getElementById('health-bar-p2');
+const ammoP2 = document.getElementById('ammo-p2');
+
+const uiLevel = document.getElementById('level-info');
+
+// Ajustar canvas
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Prevenir menú contextual
+document.addEventListener('contextmenu', event => event.preventDefault());
+
+// Estados
+const GAME_STATE = {
+    MENU: 0,
+    PLAYING: 1,
+    LEVEL_TRANSITION: 2,
+    GAME_OVER: 3,
+    VICTORY: 4
+};
+
+let currentState = GAME_STATE.MENU;
+let currentLevel = 1;
+let selectedPlayerCount = 1;
+let cameraX = 0;
+let keys = {};
+let mouse = { x: 0, y: 0 };
+
+const FAMILY_MEMBERS = [
+    "a tu Hermano", "a tu Primo", "a tu Tía", "a tu Mejor Amigo", 
+    "a tu Hermana", "a tu Padre", "a tu Madre", "a tu Hija", "a tu Hijo"
+];
+
+/**
+ * CLASES
+ */
+
+class Entity {
+    constructor(x, y, width, height, color) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.color = color;
+        this.vx = 0;
+        this.vy = 0;
+        this.grounded = false;
+        this.health = 100;
+        this.maxHealth = 100;
+        this.dead = false;
+    }
+    draw(ctx, camX) {
+        if (this.dead) return;
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x - camX, this.y, this.width, this.height);
+    }
+}
+
+class Player extends Entity {
+    constructor(x, y, id) {
+        const color = id === 1 ? '#3498db' : '#2ecc71'; // Azul P1, Verde P2
+        super(x, y, 30, 50, color);
+        this.id = id;
+        this.speed = 5;
+        this.jumpForce = 14;
+        this.cooldown = 0;
+        this.facingRight = true;
+        this.ammo = 15;
+    }
+
+    update(platforms, cars) {
+        if (this.dead) return;
+
+        // Controles P1 (WASD)
+        if (this.id === 1) {
+            if (keys['KeyA']) { this.vx = -this.speed; this.facingRight = false; }
+            else if (keys['KeyD']) { this.vx = this.speed; this.facingRight = true; }
+            else { this.vx = 0; }
+            
+            if (keys['Space'] && this.grounded) {
+                this.vy = -this.jumpForce;
+                this.grounded = false;
+            }
+        } 
+        // Controles P2 (Flechas)
+        else {
+            if (keys['ArrowLeft']) { this.vx = -this.speed; this.facingRight = false; }
+            else if (keys['ArrowRight']) { this.vx = this.speed; this.facingRight = true; }
+            else { this.vx = 0; }
+            
+            if (keys['ArrowUp'] && this.grounded) {
+                this.vy = -this.jumpForce;
+                this.grounded = false;
+            }
+
+            // Disparo P2 (Teclado)
+            if ((keys['ShiftRight'] || keys['Enter']) && this.cooldown <= 0) {
+                this.shootKeyboard();
+                this.cooldown = 15; // Fire rate limit
+            }
+        }
+
+        // Gravedad
+        this.vy += 0.6;
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Colisiones Plataformas
+        this.grounded = false;
+        platforms.forEach(plat => {
+            const dir = colCheck(this, plat);
+            if (dir === "b") {
+                this.grounded = true;
+                this.vy = 0;
+            } else if (dir === "t") this.vy = 0;
+        });
+
+        // Límites y Muerte por caída
+        if (this.x < 0) this.x = 0;
+        if (this.y > canvas.height + 100) takeDamage(this, 999); 
+
+        // Colisión Carros
+        cars.forEach(car => {
+            if (AABB(this, car)) {
+                // LOGICA DE ATERRIZAJE SEGURO EN AUTOS
+                const penetrationY = (this.y + this.height) - car.y;
+                const isFallingOnTop = penetrationY < 30 && this.vy >= 0;
+
+                if (isFallingOnTop) {
+                    // Aterrizaje seguro
+                    this.y = car.y - this.height;
+                    this.vy = 0;
+                    this.grounded = true;
+                    this.x += car.speed * car.direction;
+                } else {
+                    // Choque normal
+                    this.vx = (this.x < car.x) ? -10 : 10;
+                    this.vy = -10;
+                    takeDamage(this, 30);
+                    createParticles(this.x, this.y, 10, '#ff0000');
+                }
+            }
+        });
+
+        if (this.cooldown > 0) this.cooldown--;
+    }
+
+    shootKeyboard() {
+        if (this.ammo <= 0) {
+            createParticles(this.x + 15, this.y + 20, 2, '#555');
+            return;
+        }
+        const angle = this.facingRight ? 0 : Math.PI;
+        bullets.push(new Bullet(this.x + 15, this.y + 20, angle, true));
+        this.ammo--;
+        updateHUD();
+    }
+
+    draw(ctx, camX) {
+        if (this.dead) return;
+        super.draw(ctx, camX);
+        
+        // Bandana
+        ctx.fillStyle = '#2c3e50';
+        ctx.fillRect(this.x - camX, this.y, this.width, 15);
+        
+        // Indicador P1/P2
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px Arial';
+        ctx.fillText(`P${this.id}`, this.x - camX + 8, this.y - 5);
+
+        // Arma
+        ctx.save();
+        ctx.translate(this.x - camX + this.width/2, this.y + 20);
+        
+        let angle = 0;
+        if (this.id === 1) {
+            angle = Math.atan2(mouse.y - (this.y + 20), mouse.x - (this.x - camX + this.width/2));
+        } else {
+            angle = this.facingRight ? 0 : Math.PI;
+        }
+
+        ctx.rotate(angle);
+        ctx.fillStyle = '#333';
+        ctx.fillRect(0, -5, 25, 10);
+        ctx.restore();
+    }
+}
+
+class Enemy extends Entity {
+    constructor(x, y, type, level) {
+        super(x, y, 30, 50, '#e74c3c');
+        this.type = type;
+        this.patrolCenter = x;
+        this.patrolDir = 1;
+        this.level = level;
+        // DIFICULTAD: Disparan más rápido en niveles altos
+        this.shootCooldownMax = Math.max(40, 120 - (level * 8)); 
+        this.shootTimer = Math.random() * this.shootCooldownMax;
+
+        if (type === 'boss') {
+            this.width = 60; this.height = 100;
+            this.health = 400 + (level * 50); // Boss más duro si nivel es alto
+            this.maxHealth = this.health;
+            this.color = '#8e44ad';
+        }
+    }
+
+    update(players, platforms) {
+        if (this.dead) return;
+        
+        this.vy += 0.6;
+        this.y += this.vy;
+        
+        this.grounded = false;
+        platforms.forEach(plat => {
+            if (colCheck(this, plat) === "b") {
+                this.grounded = true;
+                this.vy = 0;
+            }
+        });
+
+        // Buscar jugador más cercano
+        let target = null;
+        let minKey = 9999;
+        players.forEach(p => {
+            if (!p.dead) {
+                const d = Math.abs(p.x - this.x);
+                if (d < minKey) { minKey = d; target = p; }
+            }
+        });
+
+        if (!target) return; // Todos muertos
+
+        if (this.type === 'boss') {
+             // Boss se mueve lento
+             if (target.x > this.x + 100) this.x += 1.5;
+             if (target.x < this.x - 100) this.x -= 1.5;
+             
+             this.shootTimer++;
+             if (this.shootTimer > this.shootCooldownMax * 0.8) {
+                 const angle = Math.atan2((target.y + 25) - (this.y + 20), (target.x + 15) - this.x);
+                 // Ráfaga boss
+                 bullets.push(new Bullet(this.x + 30, this.y + 30, angle, false));
+                 bullets.push(new Bullet(this.x + 30, this.y + 30, angle + 0.3, false));
+                 bullets.push(new Bullet(this.x + 30, this.y + 30, angle - 0.3, false));
+                 this.shootTimer = 0;
+             }
+        } else {
+            // Grunt
+            if (minKey > 400) {
+                this.x += this.patrolDir * 2;
+                if (Math.abs(this.x - this.patrolCenter) > 100) this.patrolDir *= -1;
+            } else {
+                this.shootTimer++;
+                if (this.shootTimer > this.shootCooldownMax) {
+                    const angle = Math.atan2((target.y + 25) - (this.y + 10), (target.x + 15) - this.x);
+                    bullets.push(new Bullet(this.x + 15, this.y + 10, angle, false));
+                    this.shootTimer = 0;
+                }
+            }
+        }
+    }
+}
+
+class Bullet {
+    constructor(x, y, angle, isPlayer) {
+        this.x = x; this.y = y;
+        this.vx = Math.cos(angle) * 15;
+        this.vy = Math.sin(angle) * 15;
+        this.isPlayer = isPlayer;
+        this.radius = 4;
+        this.remove = false;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy;
+        if (this.y < -50 || this.y > canvas.height + 50) this.remove = true;
+    }
+    draw(ctx, camX) {
+        ctx.beginPath();
+        ctx.arc(this.x - camX, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.isPlayer ? '#ffff00' : '#ff0000';
+        ctx.fill();
+    }
+}
+
+class AmmoPickup {
+    constructor(x, y) {
+        this.x = x; this.y = y;
+        this.width = 20; this.height = 20;
+        this.remove = false;
+        this.bob = 0;
+    }
+    draw(ctx, camX) {
+        this.bob += 0.1;
+        const by = Math.sin(this.bob) * 5;
+        ctx.fillStyle = '#f1c40f';
+        ctx.fillRect(this.x - camX, this.y + by, this.width, this.height);
+        ctx.strokeStyle = '#fff';
+        ctx.strokeRect(this.x - camX, this.y + by, this.width, this.height);
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText("A", this.x - camX + 5, this.y + by + 15);
+    }
+}
+
+// NUEVA CLASE: BOTIQUIN
+class HealthPickup {
+    constructor(x, y) {
+        this.x = x; this.y = y;
+        this.width = 20; this.height = 20;
+        this.remove = false;
+        this.bob = Math.random() * Math.PI;
+    }
+    draw(ctx, camX) {
+        this.bob += 0.1;
+        const by = Math.sin(this.bob) * 5;
+        // Caja verde
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(this.x - camX, this.y + by, this.width, this.height);
+        ctx.strokeStyle = '#fff';
+        ctx.strokeRect(this.x - camX, this.y + by, this.width, this.height);
+        // Cruz roja
+        ctx.fillStyle = '#c0392b';
+        ctx.fillRect(this.x - camX + 8, this.y + by + 3, 4, 14);
+        ctx.fillRect(this.x - camX + 3, this.y + by + 8, 14, 4);
+    }
+}
+
+class Car {
+    constructor(y, level) {
+        this.width = 120; this.height = 40;
+        this.y = y - this.height;
+        this.direction = -1; // Vienen de frente
+        // DIFICULTAD: Carros más rápidos en niveles altos
+        this.speed = (4 + Math.random() * 4) + (level * 0.5); 
+        this.x = cameraX + canvas.width + 200;
+        this.remove = false;
+    }
+    update() {
+        this.x += this.speed * this.direction;
+        if (this.x < cameraX - 400) this.remove = true;
+    }
+    draw(ctx, camX) {
+        ctx.fillStyle = '#555';
+        ctx.fillRect(this.x - camX, this.y, this.width, this.height);
+        ctx.fillStyle = '#ffff00'; // Luces
+        ctx.fillRect(this.x - camX, this.y + 10, 5, 10);
+        ctx.fillStyle = '#000'; // Ruedas
+        ctx.beginPath(); ctx.arc(this.x - camX + 20, this.y + this.height, 10, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(this.x - camX + this.width - 20, this.y + this.height, 10, 0, Math.PI*2); ctx.fill();
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x; this.y = y;
+        this.vx = (Math.random() - 0.5) * 10;
+        this.vy = (Math.random() - 0.5) * 10;
+        this.life = 1.0; this.color = color;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy; this.life -= 0.05; this.vy += 0.5;
+    }
+    draw(ctx, camX) {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x - camX, this.y, 4, 4);
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+/**
+ * GLOBALES
+ */
+let players = [];
+let enemies = [];
+let bullets = [];
+let platforms = [];
+let cars = [];
+let particles = [];
+let pickups = [];
+let healthPickups = []; // NUEVO ARRAY
+let goal = null;
+let boss = null;
+let carTimer = 0;
+
+/**
+ * INPUT
+ */
+window.addEventListener('keydown', e => keys[e.code] = true);
+window.addEventListener('keyup', e => keys[e.code] = false);
+window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+window.addEventListener('mousedown', e => {
+    if (currentState === GAME_STATE.PLAYING && e.button === 2) {
+        const p1 = players.find(p => p.id === 1);
+        if (p1 && !p1.dead) {
+            const angle = Math.atan2(mouse.y - (p1.y + 20), mouse.x - (p1.x - cameraX + 15));
+            if (p1.ammo > 0) {
+                bullets.push(new Bullet(p1.x + 15, p1.y + 20, angle, true));
+                p1.ammo--;
+                updateHUD();
+            } else {
+                createParticles(p1.x, p1.y, 2, '#555');
+            }
+        }
+    }
+});
+
+/**
+ * LÓGICA DE JUEGO
+ */
+
+function selectMode(count) {
+    selectedPlayerCount = count;
+    modeSelect.classList.add('hidden');
+    levelActions.classList.remove('hidden');
+    startGame();
+}
+
+function startGame() {
+    currentLevel = 1;
+    startLevel();
+}
+
+function nextLevel() {
+    currentLevel++;
+    startLevel();
+}
+
+// NUEVA FUNCIÓN: Renderizar Progreso
+function renderProgress() {
+    progressContainer.innerHTML = '';
+    for(let i=1; i<=10; i++) {
+        const step = document.createElement('div');
+        step.className = 'step';
+        step.innerText = i;
+        
+        if (i < currentLevel) {
+            step.classList.add('done');
+            step.innerText = '✓';
+        } else if (i === currentLevel) {
+            step.classList.add('active');
+        }
+        
+        progressContainer.appendChild(step);
+    }
+}
+
+function startLevel() {
+    currentState = GAME_STATE.PLAYING;
+    overlay.classList.add('hidden');
+    
+    // Resetear arrays
+    enemies = []; bullets = []; platforms = []; cars = []; particles = []; pickups = []; healthPickups = []; boss = null;
+    
+    // Crear Mundo
+    // DIFICULTAD: Niveles más largos
+    const levelWidth = 2000 + (currentLevel * 600); 
+    const groundY = canvas.height - 50;
+    
+    platforms.push({ x: -100, y: groundY, width: levelWidth + 1000, height: 100 });
+    
+    // Generación procedural
+    let cx = 300;
+    while(cx < levelWidth - 300) {
+        const w = 100 + Math.random() * 200;
+        const y = groundY - (50 + Math.random() * 150);
+        platforms.push({ x: cx, y: y, width: w, height: 20 });
+        
+        // Enemigos
+        // DIFICULTAD: Más enemigos en niveles altos
+        if (Math.random() < 0.3 + (currentLevel * 0.06)) {
+            enemies.push(new Enemy(cx + w/2, y - 50, 'grunt', currentLevel));
+        }
+        
+        // Munición (A)
+        if (Math.random() < 0.3 - (currentLevel * 0.015)) {
+            pickups.push(new AmmoPickup(cx + w/2, y - 40));
+        }
+
+        // Salud (+) - Spawn rate del 15%
+        if (Math.random() < 0.15) {
+            healthPickups.push(new HealthPickup(cx + w/2 + 30, y - 40));
+        }
+
+        // Plataformas altas
+        if (Math.random() < 0.4) {
+            platforms.push({ x: cx + 20, y: y - 100, width: w/2, height: 20 });
+            if (Math.random() < 0.5) enemies.push(new Enemy(cx + 20, y - 150, 'grunt', currentLevel));
+            // Salud en plataformas altas (20%)
+            if (Math.random() < 0.2) healthPickups.push(new HealthPickup(cx + 40, y - 140));
+        }
+
+        cx += w + 80 + Math.random() * 100;
+    }
+
+    // Inicializar Jugadores
+    // Si ya existen (pasando de nivel), mantener stats pero revivir si murieron y resetear pos
+    if (players.length === 0 || players.length !== selectedPlayerCount) {
+        players = [];
+        for(let i=1; i<=selectedPlayerCount; i++) {
+            players.push(new Player(50 + (i*30), groundY - 100, i));
+        }
+    } else {
+        // Reset posición y revivir
+        players.forEach((p, index) => {
+            p.x = 50 + ((index+1)*30);
+            p.y = groundY - 100;
+            p.vx = 0; p.vy = 0;
+            p.dead = false;
+            p.health = Math.max(50, p.health); // Recuperar algo de vida al pasar nivel
+            p.ammo = Math.max(10, p.ammo); // Asegurar munición mínima
+        });
+    }
+
+    // HUD config
+    if (selectedPlayerCount === 2) uiP2.classList.remove('hidden');
+    else uiP2.classList.add('hidden');
+    updateHUD();
+
+    // Objetivo
+    if (currentLevel === 10) {
+        boss = new Enemy(levelWidth - 200, groundY - 100, 'boss', 10);
+        enemies.push(boss);
+        uiLevel.innerText = "Nivel Final: EL LÍDER";
+        // Extra items for boss
+        pickups.push(new AmmoPickup(levelWidth - 500, groundY - 40));
+        healthPickups.push(new HealthPickup(levelWidth - 700, groundY - 40));
+        healthPickups.push(new HealthPickup(levelWidth - 300, groundY - 40));
+    } else {
+        goal = { x: levelWidth - 50, y: groundY - 50, width: 30, height: 50 };
+        uiLevel.innerText = `Nivel ${currentLevel}: ${FAMILY_MEMBERS[currentLevel-1]}`;
+    }
+}
+
+function update() {
+    if (currentState !== GAME_STATE.PLAYING) return;
+
+    // Tráfico
+    // DIFICULTAD: Más tráfico en niveles altos
+    carTimer++;
+    if (carTimer > Math.max(40, 120 - (currentLevel * 8))) {
+        cars.push(new Car(canvas.height - 50, currentLevel));
+        carTimer = 0;
+    }
+
+    // Updates
+    let activePlayers = players.filter(p => !p.dead);
+    if (activePlayers.length === 0) {
+        gameOver();
+        return;
+    }
+
+    players.forEach(p => p.update(platforms, cars));
+    enemies.forEach(e => e.update(players, platforms));
+    bullets.forEach(b => b.update());
+    cars.forEach(c => c.update());
+    particles.forEach(p => p.update());
+    
+    // Updates de items
+    pickups = pickups.filter(p => !p.remove);
+    healthPickups.forEach(h => {
+        // Animacion simple de flotar hecha en draw, no logic needed here
+    });
+    healthPickups = healthPickups.filter(h => !h.remove);
+
+
+    // Cámara: Promedio de jugadores vivos
+    let avgX = activePlayers.reduce((sum, p) => sum + p.x, 0) / activePlayers.length;
+    let targetCam = avgX - canvas.width * 0.4;
+    if (targetCam < 0) targetCam = 0;
+    cameraX += (targetCam - cameraX) * 0.1;
+
+    // Limpieza
+    bullets = bullets.filter(b => !b.remove);
+    cars = cars.filter(c => !c.remove);
+    particles = particles.filter(p => p.life > 0);
+    enemies = enemies.filter(e => e.health > 0);
+
+    checkCollisions();
+
+    // Victoria Nivel
+    if (currentLevel < 10 && goal) {
+        // Al menos un jugador debe llegar
+        const reached = activePlayers.some(p => AABB(p, goal));
+        if (reached) levelComplete();
+    } else if (currentLevel === 10 && boss && boss.health <= 0) {
+        gameVictory();
+    }
+}
+
+function checkCollisions() {
+    bullets.forEach(b => {
+        if (b.isPlayer) {
+            enemies.forEach(e => {
+                if (AABB_Point(e, b.x, b.y)) {
+                    b.remove = true;
+                    e.health -= 35;
+                    createParticles(e.x+15, e.y+25, 5, '#e74c3c');
+                    if (e.health <= 0) {
+                        e.dead = true;
+                        if (Math.random() < 0.3) pickups.push(new AmmoPickup(e.x, e.y));
+                        // 10% chance de dropear vida al morir
+                        if (Math.random() < 0.1) healthPickups.push(new HealthPickup(e.x + 20, e.y));
+                    }
+                }
+            });
+        } else {
+            players.forEach(p => {
+                if (!p.dead && AABB_Point(p, b.x, b.y)) {
+                    b.remove = true;
+                    takeDamage(p, 10);
+                }
+            });
+        }
+        platforms.forEach(plat => {
+            if (b.x > plat.x && b.x < plat.x + plat.width && b.y > plat.y && b.y < plat.y + plat.height) {
+                b.remove = true;
+            }
+        });
+    });
+
+    pickups.forEach(pick => {
+        players.forEach(p => {
+            if (!p.dead && AABB(p, pick)) {
+                pick.remove = true;
+                p.ammo += 15;
+                updateHUD();
+                createParticles(pick.x, pick.y, 8, '#f1c40f');
+            }
+        });
+    });
+
+    // Colisión Salud
+    healthPickups.forEach(hp => {
+        players.forEach(p => {
+            if (!p.dead && AABB(p, hp)) {
+                if (p.health < 100) {
+                    hp.remove = true;
+                    p.health = Math.min(100, p.health + 30);
+                    updateHUD();
+                    createParticles(hp.x, hp.y, 8, '#2ecc71'); // Particulas verdes
+                }
+            }
+        });
+    });
+}
+
+function takeDamage(p, amount) {
+    p.health -= amount;
+    updateHUD();
+    createParticles(p.x + 15, p.y + 25, 5, p.color);
+    if (p.health <= 0) {
+        p.health = 0;
+        p.dead = true;
+    }
+}
+
+function updateHUD() {
+    if (players[0]) {
+        barP1.style.width = players[0].health + '%';
+        ammoP1.innerText = "Munición: " + players[0].ammo;
+    }
+    if (players[1]) {
+        barP2.style.width = players[1].health + '%';
+        ammoP2.innerText = "Munición: " + players[1].ammo;
+    }
+}
+
+function draw() {
+    ctx.fillStyle = '#2c3e50';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Parallax
+    ctx.fillStyle = '#1a252f';
+    for(let i=0; i<30; i++) {
+        let x = (i * 200) - (cameraX * 0.5);
+        if (x > -200 && x < canvas.width) ctx.fillRect(x, canvas.height - 300 - (i%3)*50, 150, 600);
+    }
+
+    if (players.length === 0 && currentState === GAME_STATE.MENU) return;
+
+    platforms.forEach(p => {
+        ctx.fillStyle = '#555'; ctx.fillRect(p.x - cameraX, p.y, p.width, p.height);
+        ctx.strokeStyle = '#222'; ctx.lineWidth = 2; ctx.strokeRect(p.x - cameraX, p.y, p.width, p.height);
+    });
+
+    pickups.forEach(p => p.draw(ctx, cameraX));
+    healthPickups.forEach(h => h.draw(ctx, cameraX)); // DIBUJAR VIDA
+
+    if (goal && currentLevel < 10) {
+        ctx.fillStyle = '#2ecc71'; ctx.fillRect(goal.x - cameraX, goal.y, goal.width, goal.height);
+        ctx.fillStyle = '#fff'; ctx.fillText("SALIDA", goal.x - cameraX - 10, goal.y - 10);
+    }
+
+    enemies.forEach(e => e.draw(ctx, cameraX));
+    players.forEach(p => p.draw(ctx, cameraX));
+    cars.forEach(c => c.draw(ctx, cameraX));
+    bullets.forEach(b => b.draw(ctx, cameraX));
+    particles.forEach(p => p.draw(ctx, cameraX));
+}
+
+function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+// Utils
+function AABB(r1, r2) { return r1.x < r2.x + r2.width && r1.x + r1.width > r2.x && r1.y < r2.y + r2.height && r1.y + r1.height > r2.y; }
+function AABB_Point(r, x, y) { return x > r.x && x < r.x + r.width && y > r.y && y < r.y + r.height; }
+function createParticles(x, y, count, color) { for(let i=0; i<count; i++) particles.push(new Particle(x, y, color)); }
+function colCheck(shapeA, shapeB) {
+    var vX = (shapeA.x + (shapeA.width / 2)) - (shapeB.x + (shapeB.width / 2)),
+        vY = (shapeA.y + (shapeA.height / 2)) - (shapeB.y + (shapeB.height / 2)),
+        hWidths = (shapeA.width / 2) + (shapeB.width / 2),
+        hHeights = (shapeA.height / 2) + (shapeB.height / 2),
+        colDir = null;
+    if (Math.abs(vX) < hWidths && Math.abs(vY) < hHeights) {
+        var oX = hWidths - Math.abs(vX), oY = hHeights - Math.abs(vY);
+        if (oX >= oY) {
+            if (vY > 0) { colDir = "t"; shapeA.y += oY; } else { colDir = "b"; shapeA.y -= oY; }
+        } else {
+            if (vX > 0) { colDir = "l"; shapeA.x += oX; } else { colDir = "r"; shapeA.x -= oX; }
+        }
+    }
+    return colDir;
+}
+
+// UI Flow
+function levelComplete() {
+    currentState = GAME_STATE.LEVEL_TRANSITION;
+    renderProgress(); // ACTUALIZAR BARRA
+    overlay.classList.remove('hidden');
+    modeSelect.classList.add('hidden');
+    levelActions.classList.remove('hidden');
+    titleText.innerText = "¡NIVEL COMPLETADO!";
+    titleText.style.color = "#2ecc71";
+    storyText.innerText = `Has rescatado ${FAMILY_MEMBERS[currentLevel-1]}.`;
+    actionBtn.innerText = "SIGUIENTE NIVEL";
+    actionBtn.onclick = nextLevel;
+}
+
+function gameOver() {
+    currentState = GAME_STATE.GAME_OVER;
+    renderProgress(); // ACTUALIZAR BARRA (Para ver dónde te quedaste)
+    overlay.classList.remove('hidden');
+    modeSelect.classList.add('hidden');
+    levelActions.classList.remove('hidden');
+    titleText.innerText = "MISIÓN FALLIDA";
+    titleText.style.color = "#e74c3c";
+    storyText.innerText = "Todos los miembros de la banda han caído.";
+    actionBtn.innerText = "REINTENTAR NIVEL";
+    actionBtn.onclick = () => {
+        // Reset completo del nivel actual
+        players = []; 
+        startLevel();
+    };
+}
+
+function gameVictory() {
+    currentState = GAME_STATE.VICTORY;
+    currentLevel = 11; // Para que la barra muestre el 10 como completado
+    renderProgress();
+    overlay.classList.remove('hidden');
+    levelActions.classList.remove('hidden');
+    titleText.innerText = "¡REYES DE LA CALLE!";
+    titleText.style.color = "#f1c40f";
+    storyText.innerHTML = "La ciudad es vuestra. La venganza está completa.";
+    actionBtn.innerText = "MENU PRINCIPAL";
+    actionBtn.onclick = () => location.reload();
+}
+
+// Start (Llamar renderProgress inicial)
+renderProgress();
+loop();
+</script>
+</body>
+</html>
